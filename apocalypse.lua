@@ -23,8 +23,7 @@ const PathEngine={
   baseVec(cur,base){const dx=base.x-cur.x,dz=base.z-cur.z,d=Math.sqrt(dx*dx+dz*dz)||.001;return{x:dx/d,z:dz/d,dist:d};},
   target(cur,base,dangers){const tb=this.baseVec(cur,base);if(!dangers.length)return{x:cur.x+tb.x*5,z:cur.z+tb.z*5,distToBase:tb.dist};const av=this.avoidVec(dangers,cur),w=Math.min(dangers.length*.4,.9),fx=tb.x*(1-w)+av.x*w,fz=tb.z*(1-w)+av.z*w,fm=Math.sqrt(fx*fx+fz*fz)||.001;return{x:cur.x+(fx/fm)*5,z:cur.z+(fz/fm)*5,distToBase:tb.dist};},
   dist(a,b){const dx=a.x-b.x,dz=a.z-(b.z||0);return Math.sqrt(dx*dx+dz*dz);}
-};
-let scanInt=null,moveInt=null;
+};let scanInt=null,moveInt=null;
 function addLog(msg,type='info'){const t=new Date().toLocaleTimeString('vi-VN');STATE.logs.unshift({time:t,msg,type});if(STATE.logs.length>50)STATE.logs.pop();updateLog();}
 function startBot(){if(scanInt)return;addLog('Bot đã khởi động','success');
 scanInt=setInterval(()=>{STATE.playerPos=RobloxBridge.getPlayerPosition();const hp=RobloxBridge.getHP();STATE.currentHP=hp.current;STATE.maxHP=hp.max;const pct=(hp.current/hp.max)*100;updateHP(pct);if(STATE.emergencyReturn&&pct<=CONFIG.HEALTH_THRESHOLD&&!STATE.isReturning){STATE.isReturning=true;STATE.autoReturn=true;addLog(`⚠️ HP thấp (${pct.toFixed(0)}%) - Về base!`,'danger');updateUI();}if(STATE.avoidZombies){const r=RobloxBridge.getNearbyZombies(CONFIG.AVOID_RADIUS*2);STATE.nearestZombies=r.filter(z=>z.dist<=CONFIG.AVOID_RADIUS);if(STATE.nearestZombies.length){STATE.totalAvoided++;updateStats();}}updatePos();},CONFIG.SCAN_INTERVAL);
@@ -82,8 +81,7 @@ GM_addStyle(`
 .lm.warning{color:#fa0}
 .lm.danger{color:#f55}
 .pos{font-family:'Share Tech Mono',monospace;font-size:10px;color:#0f04;padding:4px 14px 7px;letter-spacing:1px}
-`);
-function buildUI(){
+`);function buildUI(){
 const w=document.createElement('div');w.id='sta-wrap';
 w.innerHTML=`
 <div id="sta-tog" title="Menu">☣</div>
@@ -141,4 +139,4 @@ addLog('Script khởi động thành công','success');
 addLog('Nhấn BẮT ĐẦU để kích hoạt','info');
 addLog('Nhấn 📍 BASE để lưu vị trí','info');
 startBot();STATE.autoReturn=false;updateUI();
-})();                                                                                                    
+})();
