@@ -1,329 +1,270 @@
--- SURVIVE THE APOCALYPSE - AUTO BASE + NE ZOMBIE
--- Chay bang Executor (Synapse X, KRNL, Fluxus...)
+-- Floater GUI Script (Mobile + PC)
+-- Features: Float, Speed, Noclip, Up/Down Controls, Toggle Menu
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
-local lp = Players.LocalPlayer
-local char = lp.Character or lp.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
-local hum = char:WaitForChild("Humanoid")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- === CAU HINH ===
-local Config = {
-    BasePosition = Vector3.new(0, 0, 0), -- Se cap nhat khi an Set Base
-    AvoidRadius = 20,
-    SafeDistance = 15,
-    HPThreshold = 30,
-    AutoReturn = false,
-    AvoidZombies = true,
-    EmergencyReturn = true,
+-- =====================
+-- Settings
+-- =====================
+local settings = {
+    floatEnabled = false,
+    noclipEnabled = false,
+    speed = 16,
+    floatHeight = 8,
+    verticalSpeed = 33,
+    upHeld = false,
+    downHeld = false,
 }
 
--- === GUI ===
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ApocalypseBot"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = lp.PlayerGui
-
--- Toggle Button
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 48, 0, 48)
-ToggleBtn.Position = UDim2.new(1, -70, 0, 20)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-ToggleBtn.Text = "☣"
-ToggleBtn.TextSize = 22
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextColor3 = Color3.fromRGB(0,0,0)
-ToggleBtn.Parent = ScreenGui
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-
--- Main Panel
-local Panel = Instance.new("Frame")
-Panel.Size = UDim2.new(0, 280, 0, 420)
-Panel.Position = UDim2.new(1, -290, 0, 75)
-Panel.BackgroundColor3 = Color3.fromRGB(5, 15, 5)
-Panel.BorderSizePixel = 0
-Panel.Visible = true
-Panel.Parent = ScreenGui
-Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", Panel).Color = Color3.fromRGB(0, 180, 0)
-
--- Title
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 36)
-Title.BackgroundColor3 = Color3.fromRGB(0, 30, 0)
-Title.Text = "☣  APOCALYPSE BOT"
-Title.TextColor3 = Color3.fromRGB(0, 255, 0)
-Title.TextSize = 14
-Title.Font = Enum.Font.Code
-Title.Parent = Panel
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
-
--- Status
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -10, 0, 24)
-StatusLabel.Position = UDim2.new(0, 5, 0, 40)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "● STANDBY"
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-StatusLabel.TextSize = 12
-StatusLabel.Font = Enum.Font.Code
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = Panel
-
--- Helper: tao nut toggle
-local function makeToggle(yPos, labelText, defaultOn)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -10, 0, 28)
-    row.Position = UDim2.new(0, 5, 0, yPos)
-    row.BackgroundTransparency = 1
-    row.Parent = Panel
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(0.7, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = labelText
-    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-    lbl.TextSize = 12
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = row
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 44, 0, 22)
-    btn.Position = UDim2.new(1, -46, 0.5, -11)
-    btn.Text = defaultOn and "BẬT" or "TẮT"
-    btn.TextSize = 11
-    btn.Font = Enum.Font.GothamBold
-    btn.BackgroundColor3 = defaultOn and Color3.fromRGB(0,150,0) or Color3.fromRGB(80,0,0)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Parent = row
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
-
-    local state = defaultOn
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = state and "BẬT" or "TẮT"
-        btn.BackgroundColor3 = state and Color3.fromRGB(0,150,0) or Color3.fromRGB(80,0,0)
-    end)
-    return function() return state end
-end
-
--- Helper: tao nut chinh
-local function makeButton(yPos, txt, color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.45, 0, 0, 30)
-    btn.Position = UDim2.new(color == "stop" and 0.52 or 0.03, 0, 0, yPos)
-    btn.BackgroundColor3 = color == "stop" and Color3.fromRGB(120,0,0) or color == "base" and Color3.fromRGB(0,0,120) or Color3.fromRGB(0,100,0)
-    btn.Text = txt
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.TextSize = 12
-    btn.Font = Enum.Font.GothamBold
-    btn.Parent = Panel
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,5)
-    return btn
-end
-
-local getAutoReturn = makeToggle(68, "Auto Về Base", false)
-local getAvoidZombie = makeToggle(100, "Né Zombie", true)
-local getEmergency = makeToggle(132, "Khẩn Cấp HP Thấp", true)
-
-local BtnStart = makeButton(168, "▶ BẮT ĐẦU", "start")
-local BtnStop = makeButton(168, "■ DỪNG", "stop")
-
-local BtnBase = Instance.new("TextButton")
-BtnBase.Size = UDim2.new(0.94, 0, 0, 28)
-BtnBase.Position = UDim2.new(0.03, 0, 0, 206)
-BtnBase.BackgroundColor3 = Color3.fromRGB(0, 0, 100)
-BtnBase.Text = "📍 ĐẶT VỊ TRÍ BASE (đứng tại base rồi nhấn)"
-BtnBase.TextColor3 = Color3.fromRGB(150, 180, 255)
-BtnBase.TextSize = 11
-BtnBase.Font = Enum.Font.Gotham
-BtnBase.Parent = Panel
-Instance.new("UICorner", BtnBase).CornerRadius = UDim.new(0,5)
-
--- HP Bar
-local HPLabel = Instance.new("TextLabel")
-HPLabel.Size = UDim2.new(1,-10,0,16)
-HPLabel.Position = UDim2.new(0,5,0,242)
-HPLabel.BackgroundTransparency=1
-HPLabel.Text="HP: 100%"
-HPLabel.TextColor3=Color3.fromRGB(0,220,0)
-HPLabel.TextSize=11
-HPLabel.Font=Enum.Font.Code
-HPLabel.TextXAlignment=Enum.TextXAlignment.Left
-HPLabel.Parent=Panel
-
-local HPTrack = Instance.new("Frame")
-HPTrack.Size = UDim2.new(1,-10,0,8)
-HPTrack.Position = UDim2.new(0,5,0,260)
-HPTrack.BackgroundColor3 = Color3.fromRGB(20,40,20)
-HPTrack.Parent = Panel
-Instance.new("UICorner",HPTrack).CornerRadius=UDim.new(0,4)
-
-local HPFill = Instance.new("Frame")
-HPFill.Size = UDim2.new(1,0,1,0)
-HPFill.BackgroundColor3 = Color3.fromRGB(0,200,0)
-HPFill.Parent = HPTrack
-Instance.new("UICorner",HPFill).CornerRadius=UDim.new(0,4)
-
--- Log
-local LogLabel = Instance.new("TextLabel")
-LogLabel.Size = UDim2.new(1,-10,0,100)
-LogLabel.Position = UDim2.new(0,5,0,278)
-LogLabel.BackgroundColor3 = Color3.fromRGB(0,10,0)
-LogLabel.TextColor3 = Color3.fromRGB(0,200,0)
-LogLabel.TextSize = 10
-LogLabel.Font = Enum.Font.Code
-LogLabel.TextXAlignment = Enum.TextXAlignment.Left
-LogLabel.TextYAlignment = Enum.TextYAlignment.Top
-LogLabel.TextWrapped = true
-LogLabel.Text = "[ Nhật ký ]\n"
-LogLabel.Parent = Panel
-Instance.new("UICorner",LogLabel).CornerRadius=UDim.new(0,5)
-
-local logs = {}
-local function addLog(msg)
-    table.insert(logs, 1, os.date("%H:%M:%S").." "..msg)
-    if #logs > 8 then table.remove(logs) end
-    LogLabel.Text = "[ Nhật ký ]\n"..table.concat(logs,"\n")
-end
-
--- === LOGIC ===
-local running = false
-local botConn = nil
-
-local function getZombies()
-    local result = {}
-    local pos = hrp.Position
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        local name = obj.Name:lower()
-        if (name:find("zombie") or name:find("enemy") or name:find("infected")) then
-            local zhrp = obj:FindFirstChild("HumanoidRootPart")
-            if zhrp then
-                local d = (pos - zhrp.Position).Magnitude
-                if d < Config.AvoidRadius * 2 then
-                    table.insert(result, {pos=zhrp.Position, dist=d, name=obj.Name})
-                end
+-- =====================
+-- Noclip Logic
+-- =====================
+RunService.Stepped:Connect(function()
+    if settings.noclipEnabled then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end
     end
-    return result
-end
+end)
 
-local function computeTarget()
-    local cur = hrp.Position
-    local base = Config.BasePosition
-    local toBase = (base - cur)
-    local dist = toBase.Magnitude
-    if dist < 3 then return nil, dist end
+-- =====================
+-- Float + Up/Down Logic
+-- =====================
+RunService.Heartbeat:Connect(function(dt)
+    if not settings.floatEnabled then return end
+    if not rootPart or not humanoid then return end
 
-    local dir = toBase.Unit
-    local zombies = getZombies()
-    local avoidX, avoidZ = 0, 0
+    humanoid.PlatformStand = true
 
-    for _, z in ipairs(zombies) do
-        if z.dist < Config.AvoidRadius then
-            local away = (cur - z.pos)
-            local strength = math.max(0, Config.AvoidRadius - z.dist) / Config.AvoidRadius
-            avoidX = avoidX + away.X/z.dist * strength * 2
-            avoidZ = avoidZ + away.Z/z.dist * strength * 2
-        end
+    local vel = rootPart.AssemblyLinearVelocity
+    local moveDir = humanoid.MoveDirection
+
+    local newVelocity = Vector3.new(
+        moveDir.X * settings.speed,
+        0,
+        moveDir.Z * settings.speed
+    )
+
+    if settings.upHeld then
+        newVelocity = Vector3.new(newVelocity.X, settings.verticalSpeed, newVelocity.Z)
+    elseif settings.downHeld then
+        newVelocity = Vector3.new(newVelocity.X, -settings.verticalSpeed, newVelocity.Z)
+    else
+        newVelocity = Vector3.new(newVelocity.X, 0, newVelocity.Z)
     end
 
-    local weight = math.min(#zombies * 0.35, 0.85)
-    local fx = dir.X*(1-weight) + avoidX*weight
-    local fz = dir.Z*(1-weight) + avoidZ*weight
-    local fmag = math.sqrt(fx*fx+fz*fz)
-    if fmag < 0.001 then fmag = 0.001 end
+    rootPart.AssemblyLinearVelocity = newVelocity
+end)
 
-    local target = Vector3.new(cur.X + fx/fmag*5, base.Y, cur.Z + fz/fmag*5)
-    return target, dist, #zombies
+-- Restore when float off
+local function disableFloat()
+    settings.floatEnabled = false
+    humanoid.PlatformStand = false
 end
 
-local function updateHP()
-    local pct = (hum.Health / hum.MaxHealth) * 100
-    HPFill.Size = UDim2.new(math.clamp(pct/100,0,1),0,1,0)
-    HPFill.BackgroundColor3 = pct<=30 and Color3.fromRGB(200,0,0) or pct<=60 and Color3.fromRGB(200,150,0) or Color3.fromRGB(0,200,0)
-    HPLabel.Text = string.format("HP: %.0f%%  (%.0f / %.0f)", pct, hum.Health, hum.MaxHealth)
-    return pct
+-- =====================
+-- GUI
+-- =====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FloaterGUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -110, 0.5, -160)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 36)
+titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "✈️ Floater Menu"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- Toggle Menu Button (always visible)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 60, 0, 28)
+toggleBtn.Position = UDim2.new(0, 5, 0.5, -14)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+toggleBtn.Text = "☰ Menu"
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 12
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = screenGui
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Helper: Create Button
+local function makeButton(text, color, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 38)
+    btn.Position = UDim2.new(0, 10, 0, posY)
+    btn.BackgroundColor3 = color or Color3.fromRGB(80, 80, 80)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.BorderSizePixel = 0
+    btn.Parent = mainFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
 end
 
-local function startBot()
-    if running then return end
-    running = true
-    addLog("Bot khởi động")
-    StatusLabel.Text = "● ĐANG HOẠT ĐỘNG"
-    StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+-- Helper: Label
+local function makeLabel(text, posY)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -20, 0, 24)
+    lbl.Position = UDim2.new(0, 10, 0, posY)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = mainFrame
+    return lbl
+end
 
-    botConn = RunService.Heartbeat:Connect(function()
-        -- Cap nhat HP
-        local hpPct = updateHP()
+-- Float Toggle
+local floatBtn = makeButton("🚀 Float: OFF", Color3.fromRGB(60, 60, 60), 46)
+floatBtn.MouseButton1Click:Connect(function()
+    settings.floatEnabled = not settings.floatEnabled
+    if settings.floatEnabled then
+        floatBtn.Text = "🚀 Float: ON"
+        floatBtn.BackgroundColor3 = Color3.fromRGB(34, 139, 34)
+    else
+        floatBtn.Text = "🚀 Float: OFF"
+        floatBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        disableFloat()
+    end
+end)
 
-        -- Kiem tra emergency
-        if Config.EmergencyReturn and hpPct <= Config.HPThreshold and not Config.AutoReturn then
-            Config.AutoReturn = true
-            addLog("⚠ HP thấp! Về base khẩn cấp!")
-            StatusLabel.Text = "● KHẨN CẤP - VỀ BASE"
-            StatusLabel.TextColor3 = Color3.fromRGB(255,80,0)
+-- Noclip Toggle
+local noclipBtn = makeButton("👻 Noclip: OFF", Color3.fromRGB(60, 60, 60), 94)
+noclipBtn.MouseButton1Click:Connect(function()
+    settings.noclipEnabled = not settings.noclipEnabled
+    if settings.noclipEnabled then
+        noclipBtn.Text = "👻 Noclip: ON"
+        noclipBtn.BackgroundColor3 = Color3.fromRGB(139, 34, 139)
+    else
+        noclipBtn.Text = "👻 Noclip: OFF"
+        noclipBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
         end
-
-        if not (getAutoReturn() or Config.AutoReturn) then return end
-
-        local target, dist, zombieCount = computeTarget()
-
-        if target == nil then
-            addLog("✅ Đã về base!")
-            Config.AutoReturn = false
-            StatusLabel.Text = "● TẠI BASE"
-            StatusLabel.TextColor3 = Color3.fromRGB(0,200,255)
-            return
-        end
-
-        hum:MoveTo(target)
-
-        if zombieCount and zombieCount > 0 then
-            StatusLabel.Text = string.format("● NÉ %d ZOMBIE | %.1fm", zombieCount, dist)
-            StatusLabel.TextColor3 = Color3.fromRGB(255,50,50)
-        else
-            StatusLabel.Text = string.format("● VỀ BASE | %.1fm còn lại", dist)
-            StatusLabel.TextColor3 = Color3.fromRGB(0,255,100)
-        end
-    end)
-end
-
-local function stopBot()
-    running = false
-    Config.AutoReturn = false
-    if botConn then botConn:Disconnect(); botConn = nil end
-    addLog("Bot đã dừng")
-    StatusLabel.Text = "● STANDBY"
-    StatusLabel.TextColor3 = Color3.fromRGB(150,150,150)
-end
-
--- Events
-ToggleBtn.MouseButton1Click:Connect(function()
-    Panel.Visible = not Panel.Visible
+    end
 end)
 
-BtnStart.MouseButton1Click:Connect(function()
-    Config.AutoReturn = true
-    startBot()
-    addLog("Auto về base: BẬT")
+-- Speed Controls
+makeLabel("⚡ Speed: " .. settings.speed, 142)
+local speedLabel = makeLabel("⚡ Speed: " .. settings.speed, 142)
+
+local speedRow = Instance.new("Frame")
+speedRow.Size = UDim2.new(1, -20, 0, 34)
+speedRow.Position = UDim2.new(0, 10, 0, 166)
+speedRow.BackgroundTransparency = 1
+speedRow.Parent = mainFrame
+
+local speedDown = Instance.new("TextButton")
+speedDown.Size = UDim2.new(0.45, 0, 1, 0)
+speedDown.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+speedDown.Text = "− Speed"
+speedDown.TextColor3 = Color3.fromRGB(255,255,255)
+speedDown.Font = Enum.Font.GothamBold
+speedDown.TextSize = 12
+speedDown.BorderSizePixel = 0
+speedDown.Parent = speedRow
+Instance.new("UICorner", speedDown).CornerRadius = UDim.new(0, 6)
+
+local speedUp = Instance.new("TextButton")
+speedUp.Size = UDim2.new(0.45, 0, 1, 0)
+speedUp.Position = UDim2.new(0.55, 0, 0, 0)
+speedUp.BackgroundColor3 = Color3.fromRGB(60, 140, 60)
+speedUp.Text = "+ Speed"
+speedUp.TextColor3 = Color3.fromRGB(255,255,255)
+speedUp.Font = Enum.Font.GothamBold
+speedUp.TextSize = 12
+speedUp.BorderSizePixel = 0
+speedUp.Parent = speedRow
+Instance.new("UICorner", speedUp).CornerRadius = UDim.new(0, 6)
+
+speedDown.MouseButton1Click:Connect(function()
+    settings.speed = math.max(4, settings.speed - 4)
+    speedLabel.Text = "⚡ Speed: " .. settings.speed
+end)
+speedUp.MouseButton1Click:Connect(function()
+    settings.speed = math.min(200, settings.speed + 4)
+    speedLabel.Text = "⚡ Speed: " .. settings.speed
 end)
 
-BtnStop.MouseButton1Click:Connect(function()
-    stopBot()
+-- Up / Down Buttons (Mobile)
+local upBtn = makeButton("⬆️ LÊN (Giữ)", Color3.fromRGB(30, 100, 200), 210)
+local downBtn = makeButton("⬇️ XUỐNG (Giữ)", Color3.fromRGB(200, 100, 30), 258)
+
+-- Mobile touch hold
+upBtn.MouseButton1Down:Connect(function() settings.upHeld = true end)
+upBtn.MouseButton1Up:Connect(function() settings.upHeld = false end)
+downBtn.MouseButton1Down:Connect(function() settings.downHeld = true end)
+downBtn.MouseButton1Up:Connect(function() settings.downHeld = false end)
+
+-- PC Keyboard Support (E = Up, Q = Down)
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.E then settings.upHeld = true end
+    if input.KeyCode == Enum.KeyCode.Q then settings.downHeld = true end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.E then settings.upHeld = false end
+    if input.KeyCode == Enum.KeyCode.Q then settings.downHeld = false end
 end)
 
-BtnBase.MouseButton1Click:Connect(function()
-    Config.BasePosition = hrp.Position
-    addLog(string.format("📍 Base: X=%.1f Z=%.1f", hrp.Position.X, hrp.Position.Z))
+-- Respawn handling
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    rootPart = char:WaitForChild("HumanoidRootPart")
+    settings.floatEnabled = false
+    settings.noclipEnabled = false
+    floatBtn.Text = "🚀 Float: OFF"
+    floatBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    noclipBtn.Text = "👻 Noclip: OFF"
+    noclipBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 end)
-
--- Khoi dong
-startBot()
-addLog("Đứng tại base → nhấn ĐẶT VỊ TRÍ BASE")
-addLog("Sau đó nhấn BẮT ĐẦU để bot hoạt động")
