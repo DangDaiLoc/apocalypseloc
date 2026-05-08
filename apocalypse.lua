@@ -1,4 +1,4 @@
--- Floater GUI - Match Screenshot Style
+-- Floater GUI - Block hiện hình
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -18,7 +18,39 @@ local cfg = {
     downHeld = false,
 }
 
-local blockPos = nil
+local blockPart = nil
+local bodyPos = nil
+
+-- Xóa block platform
+local function removeBlock()
+    if bodyPos then bodyPos:Destroy(); bodyPos = nil end
+    if blockPart then blockPart:Destroy(); blockPart = nil end
+end
+
+-- Tạo block hiện hình dưới chân
+local function createBlock()
+    removeBlock()
+    local pos = rootPart.Position - Vector3.new(0, 3, 0)
+
+    -- Khối đứng (hiện hình, màu xám giống ảnh)
+    blockPart = Instance.new("Part")
+    blockPart.Size = Vector3.new(4, 1, 4)
+    blockPart.Position = pos
+    blockPart.Anchored = true
+    blockPart.CanCollide = true
+    blockPart.Material = Enum.Material.SmoothPlastic
+    blockPart.BrickColor = BrickColor.new("Medium stone grey")
+    blockPart.CastShadow = true
+    blockPart.Parent = workspace
+
+    -- Ghim nhân vật đứng yên phía trên block
+    bodyPos = Instance.new("BodyPosition")
+    bodyPos.Position = Vector3.new(rootPart.Position.X, pos.Y + 2.5, rootPart.Position.Z)
+    bodyPos.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bodyPos.D = 500
+    bodyPos.P = 10000
+    bodyPos.Parent = rootPart
+end
 
 -- Noclip
 RunService.Stepped:Connect(function()
@@ -28,21 +60,24 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Float / Block
+-- Float / Block physics
 RunService.Heartbeat:Connect(function()
     if not rootPart or not humanoid then return end
-    if cfg.blockEnabled and blockPos then
+
+    if cfg.blockEnabled then
         humanoid.PlatformStand = true
-        rootPart.CFrame = CFrame.new(blockPos)
         rootPart.AssemblyLinearVelocity = Vector3.zero
-        rootPart.AssemblyAngularVelocity = Vector3.zero
         return
     end
+
     if not cfg.floatEnabled then return end
     humanoid.PlatformStand = true
-    local yVel = cfg.upHeld and cfg.verticalSpeed or cfg.downHeld and -cfg.verticalSpeed or 0
+    local yVel = cfg.upHeld and cfg.verticalSpeed
+        or cfg.downHeld and -cfg.verticalSpeed or 0
     local md = humanoid.MoveDirection
-    rootPart.AssemblyLinearVelocity = Vector3.new(md.X * cfg.speed, yVel, md.Z * cfg.speed)
+    rootPart.AssemblyLinearVelocity = Vector3.new(
+        md.X * cfg.speed, yVel, md.Z * cfg.speed
+    )
 end)
 
 -- ===================== GUI =====================
@@ -51,7 +86,6 @@ gui.Name = "FloaterGUI"
 gui.ResetOnSpawn = false
 gui.Parent = player.PlayerGui
 
--- Toggle Button (góc trên trái)
 local tog = Instance.new("TextButton")
 tog.Size = UDim2.new(0, 44, 0, 44)
 tog.Position = UDim2.new(0, 4, 0, 60)
@@ -65,13 +99,12 @@ tog.BorderColor3 = Color3.fromRGB(80,80,80)
 tog.ZIndex = 20
 tog.Parent = gui
 
--- Main Frame (giống ảnh: hẹp, dọc, góc trái)
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 150, 0, 230)
+frame.Size = UDim2.new(0, 160, 0, 240)
 frame.Position = UDim2.new(0, 4, 0, 108)
-frame.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 2
-frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+frame.BorderColor3 = Color3.fromRGB(0,0,0)
 frame.Active = true
 frame.Draggable = true
 frame.ZIndex = 10
@@ -82,200 +115,156 @@ tog.MouseButton1Click:Connect(function()
     frame.Visible = not frame.Visible
 end)
 
--- Helper tạo ô (giống các ô trong ảnh)
-local function mkCell(text, posY, height, bgColor)
-    height = height or 34
-    bgColor = bgColor or Color3.fromRGB(55, 55, 55)
+local function mkRow(posY, height)
+    height = height or 36
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1, -4, 0, height)
     f.Position = UDim2.new(0, 2, 0, posY)
-    f.BackgroundColor3 = bgColor
+    f.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
     f.BorderSizePixel = 1
     f.BorderColor3 = Color3.fromRGB(0,0,0)
     f.ZIndex = 11
     f.Parent = frame
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = Color3.new(1,1,1)
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 13
-    lbl.ZIndex = 12
-    lbl.Parent = f
-    return f, lbl
+    return f
 end
 
--- Helper tombol klik
-local function mkClickCell(text, posY, height, bgColor)
-    local f, lbl = mkCell(text, posY, height, bgColor)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.BackgroundTransparency = 1
-    btn.Text = ""
-    btn.ZIndex = 13
-    btn.Parent = f
-    return f, lbl, btn
+local function mkLabelIn(parent, text)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, 0, 1, 0)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = Color3.new(1,1,1)
+    l.Font = Enum.Font.GothamBold
+    l.TextSize = 14
+    l.ZIndex = 12
+    l.Parent = parent
+    return l
 end
 
--- =====================
--- Baris 1: Speed display (angka 8)
--- =====================
-local _, speedLbl = mkCell(cfg.speed, 2, 30)
-speedLbl.Font = Enum.Font.GothamBold
-speedLbl.TextSize = 15
+local function mkBtnOver(parent)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, 0, 1, 0)
+    b.BackgroundTransparency = 1
+    b.Text = ""
+    b.ZIndex = 13
+    b.Parent = parent
+    return b
+end
 
--- Baris 2: Vertical speed display (angka 33)
-local _, vSpeedLbl = mkCell(cfg.verticalSpeed, 34, 30)
-vSpeedLbl.Font = Enum.Font.GothamBold
-vSpeedLbl.TextSize = 15
+local row1 = mkRow(2, 36)
+local speedLbl = mkLabelIn(row1, tostring(cfg.speed))
 
--- Baris 3: Speed +/- dan Up/Down (dua kolom)
--- Speed −
-local sDownF = Instance.new("Frame")
-sDownF.Size = UDim2.new(0.48, -2, 0, 30)
-sDownF.Position = UDim2.new(0, 2, 0, 66)
-sDownF.BackgroundColor3 = Color3.fromRGB(55,55,55)
-sDownF.BorderSizePixel = 1
-sDownF.BorderColor3 = Color3.fromRGB(0,0,0)
-sDownF.ZIndex = 11
-sDownF.Parent = frame
+local row2 = mkRow(40, 36)
+local vSpeedLbl = mkLabelIn(row2, tostring(cfg.verticalSpeed))
 
-local sDownBtn = Instance.new("TextButton")
-sDownBtn.Size = UDim2.new(1,0,1,0)
-sDownBtn.BackgroundTransparency = 1
-sDownBtn.Text = "↑"
-sDownBtn.TextColor3 = Color3.new(1,1,1)
-sDownBtn.Font = Enum.Font.GothamBold
-sDownBtn.TextSize = 16
-sDownBtn.ZIndex = 12
-sDownBtn.Parent = sDownF
+local row3 = mkRow(78, 36)
+row3.BackgroundTransparency = 1
 
--- Speed +
-local sUpF = Instance.new("Frame")
-sUpF.Size = UDim2.new(0.48, -2, 0, 30)
-sUpF.Position = UDim2.new(0.52, 0, 0, 66)
-sUpF.BackgroundColor3 = Color3.fromRGB(55,55,55)
-sUpF.BorderSizePixel = 1
-sUpF.BorderColor3 = Color3.fromRGB(0,0,0)
-sUpF.ZIndex = 11
-sUpF.Parent = frame
+local leftCell = Instance.new("Frame")
+leftCell.Size = UDim2.new(0.5, -1, 1, 0)
+leftCell.BackgroundColor3 = Color3.fromRGB(55,55,55)
+leftCell.BorderSizePixel = 1
+leftCell.BorderColor3 = Color3.fromRGB(0,0,0)
+leftCell.ZIndex = 11
+leftCell.Parent = row3
+mkLabelIn(leftCell, "↑")
+local upSpeedBtn = mkBtnOver(leftCell)
 
-local sUpBtn = Instance.new("TextButton")
-sUpBtn.Size = UDim2.new(1,0,1,0)
-sUpBtn.BackgroundTransparency = 1
-sUpBtn.Text = "↓"
-sUpBtn.TextColor3 = Color3.new(1,1,1)
-sUpBtn.Font = Enum.Font.GothamBold
-sUpBtn.TextSize = 16
-sUpBtn.ZIndex = 12
-sUpBtn.Parent = sUpF
+local rightCell = Instance.new("Frame")
+rightCell.Size = UDim2.new(0.5, -1, 1, 0)
+rightCell.Position = UDim2.new(0.5, 1, 0, 0)
+rightCell.BackgroundColor3 = Color3.fromRGB(55,55,55)
+rightCell.BorderSizePixel = 1
+rightCell.BorderColor3 = Color3.fromRGB(0,0,0)
+rightCell.ZIndex = 11
+rightCell.Parent = row3
+mkLabelIn(rightCell, "↓")
+local downSpeedBtn = mkBtnOver(rightCell)
 
--- Noclip row
-local _, noclipLbl, noclipBtn = mkClickCell("Noclip: OFF", 98, 34)
+local row4 = mkRow(116, 38)
+local noclipLbl = mkLabelIn(row4, "Noclip: OFF")
+local noclipBtn = mkBtnOver(row4)
 
--- Block row
-local _, blockLbl, blockBtn = mkClickCell("Block: OFF", 134, 34)
+local row5 = mkRow(156, 38)
+local blockLbl = mkLabelIn(row5, "Block: OFF")
+local blockBtn = mkBtnOver(row5)
 
--- =====================
--- Nút LÊN / XUỐNG riêng (bên phải màn hình)
--- =====================
+-- Nút LÊN / XUỐNG riêng
 local upBtn = Instance.new("TextButton")
 upBtn.Size = UDim2.new(0, 64, 0, 64)
 upBtn.Position = UDim2.new(1, -78, 0.5, -80)
-upBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+upBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 upBtn.Text = "⬆"
 upBtn.TextColor3 = Color3.new(1,1,1)
 upBtn.Font = Enum.Font.GothamBold
-upBtn.TextSize = 22
+upBtn.TextSize = 24
 upBtn.BorderSizePixel = 2
 upBtn.BorderColor3 = Color3.fromRGB(80,80,80)
 upBtn.ZIndex = 20
 upBtn.Parent = gui
-Instance.new("UICorner", upBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", upBtn).CornerRadius = UDim.new(1,0)
 
 local downBtn = Instance.new("TextButton")
 downBtn.Size = UDim2.new(0, 64, 0, 64)
 downBtn.Position = UDim2.new(1, -78, 0.5, 16)
-downBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+downBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 downBtn.Text = "⬇"
 downBtn.TextColor3 = Color3.new(1,1,1)
 downBtn.Font = Enum.Font.GothamBold
-downBtn.TextSize = 22
+downBtn.TextSize = 24
 downBtn.BorderSizePixel = 2
 downBtn.BorderColor3 = Color3.fromRGB(80,80,80)
 downBtn.ZIndex = 20
 downBtn.Parent = gui
-Instance.new("UICorner", downBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", downBtn).CornerRadius = UDim.new(1,0)
 
--- Float bật khi chạm nút lên hoặc xuống lần đầu
+-- ===================== Logic =====================
 local function ensureFloat()
     if not cfg.floatEnabled then
         cfg.floatEnabled = true
         cfg.blockEnabled = false
-        blockPos = nil
+        removeBlock()
+        if humanoid then humanoid.PlatformStand = false end
         blockLbl.Text = "Block: OFF"
     end
 end
 
--- =====================
--- Logic Speed (↑ tăng, ↓ giảm — theo style ảnh)
--- =====================
-sDownBtn.MouseButton1Click:Connect(function()
+upSpeedBtn.MouseButton1Click:Connect(function()
     cfg.speed = math.min(500, cfg.speed + 4)
     speedLbl.Text = tostring(cfg.speed)
 end)
-sUpBtn.MouseButton1Click:Connect(function()
+downSpeedBtn.MouseButton1Click:Connect(function()
     cfg.speed = math.max(4, cfg.speed - 4)
     speedLbl.Text = tostring(cfg.speed)
 end)
 
--- =====================
--- Logic Noclip
--- =====================
 noclipBtn.MouseButton1Click:Connect(function()
     cfg.noclipEnabled = not cfg.noclipEnabled
-    if cfg.noclipEnabled then
-        noclipLbl.Text = "Noclip: ON"
-    else
-        noclipLbl.Text = "Noclip: OFF"
+    noclipLbl.Text = cfg.noclipEnabled and "Noclip: ON" or "Noclip: OFF"
+    if not cfg.noclipEnabled then
         for _, p in ipairs(character:GetDescendants()) do
             if p:IsA("BasePart") then p.CanCollide = true end
         end
     end
 end)
 
--- =====================
--- Logic Block
--- =====================
 blockBtn.MouseButton1Click:Connect(function()
     cfg.blockEnabled = not cfg.blockEnabled
     if cfg.blockEnabled then
         cfg.floatEnabled = false
-        blockPos = rootPart.Position
         humanoid.PlatformStand = true
+        createBlock()
         blockLbl.Text = "Block: ON"
     else
-        blockPos = nil
+        removeBlock()
         blockLbl.Text = "Block: OFF"
         humanoid.PlatformStand = false
     end
 end)
 
--- =====================
--- Lên / Xuống
--- =====================
-upBtn.MouseButton1Down:Connect(function()
-    ensureFloat()
-    cfg.upHeld = true
-end)
+upBtn.MouseButton1Down:Connect(function() ensureFloat(); cfg.upHeld = true end)
 upBtn.MouseButton1Up:Connect(function() cfg.upHeld = false end)
-
-downBtn.MouseButton1Down:Connect(function()
-    ensureFloat()
-    cfg.downHeld = true
-end)
+downBtn.MouseButton1Down:Connect(function() ensureFloat(); cfg.downHeld = true end)
 downBtn.MouseButton1Up:Connect(function() cfg.downHeld = false end)
 
 UserInputService.InputBegan:Connect(function(i, gpe)
@@ -288,9 +277,6 @@ UserInputService.InputEnded:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.Q then cfg.downHeld = false end
 end)
 
--- =====================
--- Respawn
--- =====================
 player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = char:WaitForChild("Humanoid")
@@ -298,7 +284,7 @@ player.CharacterAdded:Connect(function(char)
     cfg.floatEnabled = false
     cfg.noclipEnabled = false
     cfg.blockEnabled = false
-    blockPos = nil
+    removeBlock()
     speedLbl.Text = tostring(cfg.speed)
     noclipLbl.Text = "Noclip: OFF"
     blockLbl.Text = "Block: OFF"
