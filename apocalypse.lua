@@ -1,4 +1,4 @@
--- Floater GUI Script (Mobile + PC) - Fixed Version
+-- Floater GUI - Fixed v3
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,7 +8,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
-local settings = {
+local cfg = {
     floatEnabled = false,
     noclipEnabled = false,
     blockEnabled = false,
@@ -18,277 +18,240 @@ local settings = {
     downHeld = false,
 }
 
--- =====================
 -- Noclip
--- =====================
 RunService.Stepped:Connect(function()
-    if settings.noclipEnabled then
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
+    if cfg.noclipEnabled then
+        for _, p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
         end
     end
 end)
 
--- =====================
--- Float + Block + Up/Down
--- =====================
+-- Float / Block physics
 RunService.Heartbeat:Connect(function()
     if not rootPart or not humanoid then return end
-
-    -- BLOCK: đứng yên hoàn toàn
-    if settings.blockEnabled then
+    if cfg.blockEnabled then
         humanoid.PlatformStand = true
         rootPart.AssemblyLinearVelocity = Vector3.zero
         rootPart.AssemblyAngularVelocity = Vector3.zero
         return
     end
-
-    if not settings.floatEnabled then return end
-
+    if not cfg.floatEnabled then return end
     humanoid.PlatformStand = true
-
-    local moveDir = humanoid.MoveDirection
-    local yVel = 0
-
-    if settings.upHeld then
-        yVel = settings.verticalSpeed
-    elseif settings.downHeld then
-        yVel = -settings.verticalSpeed
-    end
-
-    rootPart.AssemblyLinearVelocity = Vector3.new(
-        moveDir.X * settings.speed,
-        yVel,
-        moveDir.Z * settings.speed
-    )
+    local yVel = cfg.upHeld and cfg.verticalSpeed or cfg.downHeld and -cfg.verticalSpeed or 0
+    local md = humanoid.MoveDirection
+    rootPart.AssemblyLinearVelocity = Vector3.new(md.X * cfg.speed, yVel, md.Z * cfg.speed)
 end)
 
-local function disableFloat()
-    settings.floatEnabled = false
-    if humanoid then humanoid.PlatformStand = false end
-end
+-- ===================== GUI =====================
+local gui = Instance.new("ScreenGui")
+gui.Name = "FloaterGUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player.PlayerGui
 
-local function disableBlock()
-    settings.blockEnabled = false
-    if humanoid then humanoid.PlatformStand = false end
-end
+-- Toggle button
+local tog = Instance.new("TextButton")
+tog.Size = UDim2.new(0, 80, 0, 32)
+tog.Position = UDim2.new(0, 10, 0, 10)
+tog.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+tog.Text = "☰ Menu"
+tog.TextColor3 = Color3.new(1,1,1)
+tog.Font = Enum.Font.GothamBold
+tog.TextSize = 13
+tog.BorderSizePixel = 0
+tog.ZIndex = 20
+tog.Parent = gui
+Instance.new("UICorner", tog).CornerRadius = UDim.new(0, 7)
 
--- =====================
--- GUI Setup
--- =====================
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FloaterGUI"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = player.PlayerGui
+-- Main frame - dùng position thủ công, KHÔNG dùng UIListLayout
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 240, 0, 420)
+frame.Position = UDim2.new(0, 10, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.ZIndex = 10
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
--- Toggle Button (luôn hiện)
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 80, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 0, 10)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggleBtn.Text = "☰ Menu"
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 13
-toggleBtn.BorderSizePixel = 0
-toggleBtn.ZIndex = 10
-toggleBtn.Parent = screenGui
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
-
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 230, 0, 370)
-mainFrame.Position = UDim2.new(0, 10, 0, 48)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Visible = true
-mainFrame.ZIndex = 5
-mainFrame.Parent = screenGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
-
--- UIListLayout để tự xếp nút
-local layout = Instance.new("UIListLayout")
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 6)
-layout.Parent = mainFrame
-
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 8)
-padding.PaddingBottom = UDim.new(0, 8)
-padding.PaddingLeft = UDim.new(0, 8)
-padding.PaddingRight = UDim.new(0, 8)
-padding.Parent = mainFrame
-
-toggleBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
+tog.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
 end)
 
--- Helper tạo nút
-local function makeBtn(text, color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 42)
-    btn.BackgroundColor3 = color or Color3.fromRGB(60, 60, 60)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 13
-    btn.BorderSizePixel = 0
-    btn.AutoButtonColor = true
-    btn.Parent = mainFrame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
-    return btn
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 36)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+title.Text = "  ✈️  Floater Menu"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BorderSizePixel = 0
+title.ZIndex = 11
+title.Parent = frame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+
+-- Helper: nút full width
+local function mkBtn(text, color, posY)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 44)
+    b.Position = UDim2.new(0, 10, 0, posY)
+    b.BackgroundColor3 = color
+    b.Text = text
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    b.BorderSizePixel = 0
+    b.ZIndex = 11
+    b.Parent = frame
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    return b
 end
 
--- Helper tạo label
-local function makeLabel(text)
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 0, 24)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = Color3.fromRGB(180, 180, 180)
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 12
-    lbl.TextXAlignment = Enum.TextXAlignment.Center
-    lbl.Parent = mainFrame
-    return lbl
+-- Helper: label
+local function mkLabel(text, posY)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -20, 0, 26)
+    l.Position = UDim2.new(0, 10, 0, posY)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = Color3.fromRGB(210, 210, 210)
+    l.Font = Enum.Font.GothamBold
+    l.TextSize = 13
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.ZIndex = 11
+    l.Parent = frame
+    return l
 end
 
--- =====================
--- Float Button
--- =====================
-local floatBtn = makeBtn("🚀 Float: OFF", Color3.fromRGB(60, 60, 60))
+-- ======= Các nút =======
+-- posY: 44 = title
+-- spacing: 10px giữa các item
+
+-- Float (posY 54)
+local floatBtn = mkBtn("🚀  Float: OFF", Color3.fromRGB(60,60,60), 44)
+
+-- Noclip (posY 108)
+local noclipBtn = mkBtn("👻  Noclip: OFF", Color3.fromRGB(60,60,60), 98)
+
+-- Block (posY 162)
+local blockBtn = mkBtn("🧱  Block: OFF", Color3.fromRGB(60,60,60), 152)
+
+-- Speed label (posY 216)
+local speedLbl = mkLabel("⚡  Speed: " .. cfg.speed, 206)
+
+-- Speed buttons (posY 232) — hai nút nhỏ cạnh nhau
+local sDown = Instance.new("TextButton")
+sDown.Size = UDim2.new(0, 103, 0, 40)
+sDown.Position = UDim2.new(0, 10, 0, 234)
+sDown.BackgroundColor3 = Color3.fromRGB(190, 50, 50)
+sDown.Text = "−  Speed"
+sDown.TextColor3 = Color3.new(1,1,1)
+sDown.Font = Enum.Font.GothamBold
+sDown.TextSize = 13
+sDown.BorderSizePixel = 0
+sDown.ZIndex = 11
+sDown.Parent = frame
+Instance.new("UICorner", sDown).CornerRadius = UDim.new(0, 8)
+
+local sUp = Instance.new("TextButton")
+sUp.Size = UDim2.new(0, 107, 0, 40)
+sUp.Position = UDim2.new(0, 123, 0, 234)
+sUp.BackgroundColor3 = Color3.fromRGB(50, 160, 50)
+sUp.Text = "+  Speed"
+sUp.TextColor3 = Color3.new(1,1,1)
+sUp.Font = Enum.Font.GothamBold
+sUp.TextSize = 13
+sUp.BorderSizePixel = 0
+sUp.ZIndex = 11
+sUp.Parent = frame
+Instance.new("UICorner", sUp).CornerRadius = UDim.new(0, 8)
+
+-- LÊN (posY 284)
+local upBtn = mkBtn("⬆️  LÊN (Giữ)", Color3.fromRGB(30, 100, 210), 284)
+
+-- XUỐNG (posY 338)
+local downBtn = mkBtn("⬇️  XUỐNG (Giữ)", Color3.fromRGB(190, 100, 20), 338)
+
+-- ======= Logic nút =======
 floatBtn.MouseButton1Click:Connect(function()
-    settings.floatEnabled = not settings.floatEnabled
-    if settings.floatEnabled then
-        settings.blockEnabled = false
-        blockBtn.Text = "🧱 Block: OFF"
-        blockBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        floatBtn.Text = "🚀 Float: ON"
-        floatBtn.BackgroundColor3 = Color3.fromRGB(34, 139, 34)
+    cfg.floatEnabled = not cfg.floatEnabled
+    if cfg.floatEnabled then
+        cfg.blockEnabled = false
+        blockBtn.Text = "🧱  Block: OFF"
+        blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        floatBtn.Text = "🚀  Float: ON"
+        floatBtn.BackgroundColor3 = Color3.fromRGB(34,139,34)
     else
-        floatBtn.Text = "🚀 Float: OFF"
-        floatBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        disableFloat()
+        floatBtn.Text = "🚀  Float: OFF"
+        floatBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        if humanoid then humanoid.PlatformStand = false end
     end
 end)
 
--- =====================
--- Noclip Button
--- =====================
-local noclipBtn = makeBtn("👻 Noclip: OFF", Color3.fromRGB(60, 60, 60))
 noclipBtn.MouseButton1Click:Connect(function()
-    settings.noclipEnabled = not settings.noclipEnabled
-    if settings.noclipEnabled then
-        noclipBtn.Text = "👻 Noclip: ON"
-        noclipBtn.BackgroundColor3 = Color3.fromRGB(139, 34, 139)
+    cfg.noclipEnabled = not cfg.noclipEnabled
+    if cfg.noclipEnabled then
+        noclipBtn.Text = "👻  Noclip: ON"
+        noclipBtn.BackgroundColor3 = Color3.fromRGB(139,34,139)
     else
-        noclipBtn.Text = "👻 Noclip: OFF"
-        noclipBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = true end
+        noclipBtn.Text = "👻  Noclip: OFF"
+        noclipBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        for _, p in ipairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = true end
         end
     end
 end)
 
--- =====================
--- Block Button (đứng yên)
--- =====================
-blockBtn = makeBtn("🧱 Block: OFF", Color3.fromRGB(60, 60, 60))
 blockBtn.MouseButton1Click:Connect(function()
-    settings.blockEnabled = not settings.blockEnabled
-    if settings.blockEnabled then
-        settings.floatEnabled = false
-        floatBtn.Text = "🚀 Float: OFF"
-        floatBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        blockBtn.Text = "🧱 Block: ON"
-        blockBtn.BackgroundColor3 = Color3.fromRGB(180, 120, 20)
+    cfg.blockEnabled = not cfg.blockEnabled
+    if cfg.blockEnabled then
+        cfg.floatEnabled = false
+        floatBtn.Text = "🚀  Float: OFF"
+        floatBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        blockBtn.Text = "🧱  Block: ON"
+        blockBtn.BackgroundColor3 = Color3.fromRGB(200,130,0)
     else
-        blockBtn.Text = "🧱 Block: OFF"
-        blockBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        disableBlock()
+        blockBtn.Text = "🧱  Block: OFF"
+        blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        if humanoid then humanoid.PlatformStand = false end
     end
 end)
 
--- =====================
--- Speed Display + Controls
--- =====================
-local speedLabel = makeLabel("⚡ Speed: " .. settings.speed)
-
-local speedRow = Instance.new("Frame")
-speedRow.Size = UDim2.new(1, 0, 0, 42)
-speedRow.BackgroundTransparency = 1
-speedRow.Parent = mainFrame
-
-local rowLayout = Instance.new("UIListLayout")
-rowLayout.FillDirection = Enum.FillDirection.Horizontal
-rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-rowLayout.Padding = UDim.new(0, 6)
-rowLayout.Parent = speedRow
-
-local function makeHalfBtn(text, color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 100, 1, 0)
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 13
-    btn.BorderSizePixel = 0
-    btn.Parent = speedRow
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
-    return btn
-end
-
-local speedDown = makeHalfBtn("− Speed", Color3.fromRGB(180, 60, 60))
-local speedUp = makeHalfBtn("+ Speed", Color3.fromRGB(60, 140, 60))
-
-speedDown.MouseButton1Click:Connect(function()
-    settings.speed = math.max(4, settings.speed - 4)
-    speedLabel.Text = "⚡ Speed: " .. settings.speed
+sDown.MouseButton1Click:Connect(function()
+    cfg.speed = math.max(4, cfg.speed - 4)
+    speedLbl.Text = "⚡  Speed: " .. cfg.speed
 end)
-speedUp.MouseButton1Click:Connect(function()
-    settings.speed = math.min(500, settings.speed + 4)
-    speedLabel.Text = "⚡ Speed: " .. settings.speed
+sUp.MouseButton1Click:Connect(function()
+    cfg.speed = math.min(500, cfg.speed + 4)
+    speedLbl.Text = "⚡  Speed: " .. cfg.speed
 end)
 
--- =====================
--- Up / Down Buttons
--- =====================
-local upBtn = makeBtn("⬆️ LÊN (Giữ)", Color3.fromRGB(30, 100, 200))
-local downBtn = makeBtn("⬇️ XUỐNG (Giữ)", Color3.fromRGB(160, 80, 20))
+upBtn.MouseButton1Down:Connect(function() cfg.upHeld = true end)
+upBtn.MouseButton1Up:Connect(function() cfg.upHeld = false end)
+downBtn.MouseButton1Down:Connect(function() cfg.downHeld = true end)
+downBtn.MouseButton1Up:Connect(function() cfg.downHeld = false end)
 
-upBtn.MouseButton1Down:Connect(function() settings.upHeld = true end)
-upBtn.MouseButton1Up:Connect(function() settings.upHeld = false end)
-downBtn.MouseButton1Down:Connect(function() settings.downHeld = true end)
-downBtn.MouseButton1Up:Connect(function() settings.downHeld = false end)
-
--- PC Keyboard: E = Lên, Q = Xuống
-UserInputService.InputBegan:Connect(function(input, gpe)
+UserInputService.InputBegan:Connect(function(i, gpe)
     if gpe then return end
-    if input.KeyCode == Enum.KeyCode.E then settings.upHeld = true end
-    if input.KeyCode == Enum.KeyCode.Q then settings.downHeld = true end
+    if i.KeyCode == Enum.KeyCode.E then cfg.upHeld = true end
+    if i.KeyCode == Enum.KeyCode.Q then cfg.downHeld = true end
 end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.E then settings.upHeld = false end
-    if input.KeyCode == Enum.KeyCode.Q then settings.downHeld = false end
+UserInputService.InputEnded:Connect(function(i)
+    if i.KeyCode == Enum.KeyCode.E then cfg.upHeld = false end
+    if i.KeyCode == Enum.KeyCode.Q then cfg.downHeld = false end
 end)
 
--- =====================
--- Respawn
--- =====================
 player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = char:WaitForChild("Humanoid")
     rootPart = char:WaitForChild("HumanoidRootPart")
-    settings.floatEnabled = false
-    settings.noclipEnabled = false
-    settings.blockEnabled = false
-    floatBtn.Text = "🚀 Float: OFF"; floatBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    noclipBtn.Text = "👻 Noclip: OFF"; noclipBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    blockBtn.Text = "🧱 Block: OFF"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    cfg.floatEnabled = false; cfg.noclipEnabled = false; cfg.blockEnabled = false
+    floatBtn.Text = "🚀  Float: OFF"; floatBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    noclipBtn.Text = "👻  Noclip: OFF"; noclipBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    blockBtn.Text = "🧱  Block: OFF"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
 end)
